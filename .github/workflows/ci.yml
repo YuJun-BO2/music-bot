@@ -58,6 +58,10 @@ jobs:
     name: 🐳 Docker Build Test
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: read
+      packages: read
+    
     steps:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
@@ -70,6 +74,6 @@ jobs:
       with:
         context: .
         push: false
-        tags: discord-music-bot:test
+        tags: ghcr.io/yujun-bo2/music-bot:test
         cache-from: type=gha
         cache-to: type=gha,mode=max

@@ -7,9 +7,14 @@ on:
     branches: [ main ]
   workflow_dispatch:  # 允許手動觸發
 
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository_owner }}/music-bot
 
 jobs:
   # 🧪 測試階段
@@ -50,6 +55,11 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    
     outputs:
       image: ${{ steps.image.outputs.image }}
       digest: ${{ steps.build.outputs.digest }}
@@ -67,6 +77,10 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📦 Set repository permissions
+      run: |
+        echo "Setting repository permissions for GHCR package"
     
     - name: 🏷️ Extract metadata
       id: meta
@@ -78,6 +92,10 @@ jobs:
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=Discord Music Bot
+          org.opencontainers.image.description=A Discord music bot with YouTube and Spotify support
+          org.opencontainers.image.vendor=${{ github.repository_owner }}
     
     - name: 🔨 Build and push Docker image
       id: build
