@@ -1,0 +1,193 @@
+name: 🚀 Deploy Discord Music Bot
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # 允許手動觸發
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 🧪 測試階段
+  test:
+    name: 🧪 Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🧪 Run unit tests
+      run: |
+        python test_bot.py
+    
+    - name: 📊 Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: test-results/
+
+  # 🔨 構建階段
+  build:
+    name: 🔨 Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: 🔑 Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 🏷️ Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: 🔨 Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+    
+    - name: 📝 Output image
+      id: image
+      run: |
+        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+
+  # 🚀 部署階段
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Deploy to server via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ vars.DEPLOY_HOST }}
+        username: ${{ vars.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        port: ${{ vars.DEPLOY_PORT || 22 }}
+        script: |
+          # 更新系統
+          sudo apt-get update
+          
+          # 安裝 Docker 和 Docker Compose（如果還沒安裝）
+          if ! command -v docker &> /dev/null; then
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker $USER
+          fi
+          
+          if ! command -v docker-compose &> /dev/null; then
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          fi
+          
+          # 創建應用目錄
+          mkdir -p ~/discord-music-bot
+          cd ~/discord-music-bot
+          
+          # 下載最新的 docker-compose.yml
+          curl -o docker-compose.yml https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.yml
+          
+          # 創建 .env 文件（如果不存在）
+          if [ ! -f .env ]; then
+            echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" > .env
+            echo "COMMAND_PREFIX=${{ vars.COMMAND_PREFIX || '/' }}" >> .env
+            echo "MAX_QUEUE_SIZE=${{ vars.MAX_QUEUE_SIZE || '100' }}" >> .env
+            echo "MAX_HISTORY_SIZE=${{ vars.MAX_HISTORY_SIZE || '50' }}" >> .env
+            echo "EXTRACT_TIMEOUT=${{ vars.EXTRACT_TIMEOUT || '30' }}" >> .env
+            echo "KEEPALIVE_INTERVAL=${{ vars.KEEPALIVE_INTERVAL || '240' }}" >> .env
+            echo "SSH_HOST=${{ vars.SSH_HOST }}" >> .env
+            echo "SSH_PORT=${{ vars.SSH_PORT || '22' }}" >> .env
+            echo "SSH_USER=${{ vars.SSH_USER }}" >> .env
+            echo "SSH_PASS=${{ secrets.SSH_PASS }}" >> .env
+            echo "ALLOWED_IDS=${{ vars.ALLOWED_IDS }}" >> .env
+          fi
+          
+          # 拉取最新映像
+          docker-compose pull
+          
+          # 停止現有容器
+          docker-compose down
+          
+          # 啟動新容器
+          docker-compose up -d
+          
+          # 清理未使用的映像
+          docker image prune -f
+          
+          # 顯示容器狀態
+          docker-compose ps
+          docker-compose logs --tail=50
+
+  # 📊 通知階段
+  notify:
+    name: 📊 Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [test, build, deploy]
+    if: always()
+    
+    steps:
+    - name: 📊 Notify Success
+      if: ${{ needs.deploy.result == 'success' }}
+      run: |
+        echo "🎉 部署成功！"
+        echo "映像: ${{ needs.build.outputs.image }}"
+        echo "摘要: ${{ needs.build.outputs.digest }}"
+    
+    - name: ❌ Notify Failure
+      if: ${{ needs.deploy.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure' }}
+      run: |
+        echo "❌ 部署失敗！"
+        echo "測試結果: ${{ needs.test.result }}"
+        echo "構建結果: ${{ needs.build.result }}"
+        echo "部署結果: ${{ needs.deploy.result }}"

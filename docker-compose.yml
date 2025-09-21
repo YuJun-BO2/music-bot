@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  music-bot:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: discord-music-bot
+    restart: unless-stopped
+    
+    # 環境變數設定（由 GitHub Actions 自動注入）
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - COMMAND_PREFIX=${COMMAND_PREFIX:-/}
+      - MAX_QUEUE_SIZE=${MAX_QUEUE_SIZE:-100}
+      - MAX_HISTORY_SIZE=${MAX_HISTORY_SIZE:-50}
+      - EXTRACT_TIMEOUT=${EXTRACT_TIMEOUT:-30}
+      - KEEPALIVE_INTERVAL=${KEEPALIVE_INTERVAL:-240}
+      - SSH_HOST=${SSH_HOST:-}
+      - SSH_PORT=${SSH_PORT:-22}
+      - SSH_USER=${SSH_USER:-}
+      - SSH_PASS=${SSH_PASS:-}
+      - ALLOWED_IDS=${ALLOWED_IDS:-}
+      - STATE_FILE=/app/data/bot_state.json
+      - LOG_FILE=/app/logs/musicbot.log
+    
+    # 數據持久化
+    volumes:
+      - bot_data:/app/data
+      - bot_logs:/app/logs
+    
+    # 網絡設定（如果需要）
+    # networks:
+    #   - bot_network
+    
+    # 健康檢查
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('/app/data/bot_state.json') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# 數據卷
+volumes:
+  bot_data:
+    driver: local
+  bot_logs:
+    driver: local
+
+# 網絡（如果需要）
+# networks:
+#   bot_network:
+#     driver: bridge
