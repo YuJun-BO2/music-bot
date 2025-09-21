@@ -158,21 +158,20 @@ jobs:
           
           # 創建 .env 文件（如果不存在）
           if [ ! -f .env ]; then
-            cat > .env << 'EOF'
-DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
-COMMAND_PREFIX=${{ vars.COMMAND_PREFIX || '/' }}
-MAX_QUEUE_SIZE=${{ vars.MAX_QUEUE_SIZE || '100' }}
-MAX_HISTORY_SIZE=${{ vars.MAX_HISTORY_SIZE || '50' }}
-EXTRACT_TIMEOUT=${{ vars.EXTRACT_TIMEOUT || '30' }}
-KEEPALIVE_INTERVAL=${{ vars.KEEPALIVE_INTERVAL || '240' }}
-SSH_HOST=${{ vars.DEPLOY_HOST }}
-SSH_PORT=${{ vars.DEPLOY_PORT || '22' }}
-SSH_USER=${{ vars.DEPLOY_USER }}
-ALLOWED_IDS=${{ vars.ALLOWED_IDS }}
-EOF
-            # 如果有SSH密碼，單獨添加（避免特殊字符問題）
-            if [ -n "${{ secrets.SSH_PASS }}" ]; then
-              printf 'SSH_PASS=%s\n' '${{ secrets.SSH_PASS }}' >> .env
+            echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" > .env
+            echo "COMMAND_PREFIX=${{ vars.COMMAND_PREFIX || '/' }}" >> .env
+            echo "MAX_QUEUE_SIZE=${{ vars.MAX_QUEUE_SIZE || '100' }}" >> .env
+            echo "MAX_HISTORY_SIZE=${{ vars.MAX_HISTORY_SIZE || '50' }}" >> .env
+            echo "EXTRACT_TIMEOUT=${{ vars.EXTRACT_TIMEOUT || '30' }}" >> .env
+            echo "KEEPALIVE_INTERVAL=${{ vars.KEEPALIVE_INTERVAL || '240' }}" >> .env
+            echo "SSH_HOST=${{ vars.DEPLOY_HOST }}" >> .env
+            echo "SSH_PORT=${{ vars.DEPLOY_PORT || '22' }}" >> .env
+            echo "SSH_USER=${{ vars.DEPLOY_USER }}" >> .env
+            echo "ALLOWED_IDS=${{ vars.ALLOWED_IDS }}" >> .env
+            # 處理可能包含特殊字符的密碼
+            SSH_PASS='${{ secrets.SSH_PASS }}'
+            if [ -n "\$SSH_PASS" ]; then
+              echo "SSH_PASS=\$SSH_PASS" >> .env
             fi
           fi
           
@@ -191,6 +190,27 @@ EOF
           # 顯示容器狀態
           docker-compose ps
           docker-compose logs --tail=50
+          
+          # 等待容器啟動
+          sleep 10
+          
+          # 檢查機器人健康狀態
+          echo "=== 檢查機器人健康狀態 ==="
+          if docker-compose ps | grep -q "Up"; then
+            echo "✅ 容器正在運行"
+            # 檢查機器人日誌中是否有成功連接的訊息
+            if docker-compose logs discord-music-bot | grep -i "logged in\|ready\|connected" | tail -5; then
+              echo "✅ 機器人似乎已成功連接到 Discord"
+            else
+              echo "⚠️  未在日誌中找到連接成功的訊息"
+              echo "最近的日誌："
+              docker-compose logs discord-music-bot --tail=10
+            fi
+          else
+            echo "❌ 容器未正常運行"
+            docker-compose logs discord-music-bot --tail=20
+            exit 1
+          fi
 
   # 📊 通知階段
   notify:
