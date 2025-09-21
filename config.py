@@ -64,14 +64,14 @@ class Config:
     def validate(cls) -> bool:
         """驗證必要的配置是否完整"""
         if not cls.DISCORD_TOKEN:
-            print("❌ 錯誤：DISCORD_TOKEN 未設定")
+            print("錯誤：DISCORD_TOKEN 未設定")
             return False
             
         # 檢查狀態文件目錄是否可寫
         try:
             cls.STATE_FILE.parent.mkdir(exist_ok=True)
         except Exception as e:
-            print(f"❌ 錯誤：無法創建狀態文件目錄：{e}")
+            print(f"錯誤：無法創建狀態文件目錄：{e}")
             return False
             
         return True

@@ -17,7 +17,7 @@ os.environ['DISCORD_TOKEN'] = 'test_token'
 os.environ['STATE_FILE'] = 'test_state.json'
 
 try:
-    from config import config
+    from config import config, Config
     from state_manager import StateManager
     from audio_sources import AudioSourceManager, AudioSourceError
 except ImportError as e:
@@ -50,13 +50,13 @@ class TestConfig(unittest.TestCase):
     
     def test_config_validation_without_token(self):
         """測試無Token的配置驗證"""
-        original_token = config.DISCORD_TOKEN
-        config.DISCORD_TOKEN = ""
+        original_token = Config.DISCORD_TOKEN
+        Config.DISCORD_TOKEN = ""
         
         try:
             self.assertFalse(config.validate())
         finally:
-            config.DISCORD_TOKEN = original_token
+            Config.DISCORD_TOKEN = original_token
     
     def test_ssh_config(self):
         """測試SSH配置"""
@@ -321,7 +321,7 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
 
 def run_tests():
     """運行所有測試"""
-    print("🧪 運行Discord音樂機器人單元測試")
+    print("運行Discord音樂機器人單元測試")
     print("=" * 50)
     
     # 創建測試套件
