@@ -1,0 +1,25 @@
+# Discord音樂機器人依賴套件
+# 支援Python 3.10+, discord.py 2.4+
+
+# Discord API
+discord.py>=2.4.0
+
+# YouTube下載和搜尋
+yt-dlp>=2023.7.6
+youtube-search-python>=1.6.6
+
+# Spotify API
+spotipy>=2.22.1
+spotipy-anon>=0.1.0
+
+# SSH連接 (用於遠端處理)
+paramiko>=3.0.0
+
+# 音訊處理 (通常需要額外安裝FFmpeg)
+# FFmpeg需要單獨安裝到系統中
+# Windows: 下載FFmpeg並加入PATH
+# macOS: brew install ffmpeg  
+# Ubuntu: sudo apt install ffmpeg
+
+# 可選：如果需要更好的音訊編碼
+# pynacl>=1.5.0  # 用於語音加密，可提升音質
