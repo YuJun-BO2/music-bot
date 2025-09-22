@@ -168,12 +168,15 @@ jobs:
             echo "SSH_PORT=${{ vars.DEPLOY_PORT || '22' }}" >> .env
             echo "SSH_USER=${{ vars.DEPLOY_USER }}" >> .env
             echo "ALLOWED_IDS=${{ vars.ALLOWED_IDS }}" >> .env
-            # 處理可能包含特殊字符的密碼
-            SSH_PASS='${{ secrets.SSH_PASS }}'
-            if [ -n "\$SSH_PASS" ]; then
-              echo "SSH_PASS=\$SSH_PASS" >> .env
-            fi
           fi
+          
+          # 單獨處理SSH_PASS，因為它可能是多行的SSH私鑰
+          cat > .env.ssh << 'EOF'
+SSH_PASS=${{ secrets.SSH_PASS }}
+EOF
+          # 將SSH_PASS加到.env檔案
+          cat .env.ssh >> .env
+          rm .env.ssh
           
           # 拉取最新映像
           docker-compose pull
