@@ -63,15 +63,31 @@ jobs:
     outputs:
       image: ${{ steps.image.outputs.image }}
       digest: ${{ steps.build.outputs.digest }}
+      changed: ${{ steps.changes.outputs.changed }}
     
     steps:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 2  # 需要比較前一個提交
     
-    - name: 🔧 Set up Docker Buildx
+    - name: � Check for changes
+      id: changes
+      run: |
+        if git diff --quiet HEAD~1 HEAD -- . ':!README.md' ':!docs/' ':!.github/workflows/ci.yml'; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "No significant changes detected"
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "Changes detected, will build new image"
+        fi
+    
+    - name: �🔧 Set up Docker Buildx
+      if: steps.changes.outputs.changed == 'true'
       uses: docker/setup-buildx-action@v3
     
     - name: 🔑 Log in to Container Registry
+      if: steps.changes.outputs.changed == 'true'
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
@@ -83,6 +99,7 @@ jobs:
         echo "Setting repository permissions for GHCR package"
     
     - name: 🏷️ Extract metadata
+      if: steps.changes.outputs.changed == 'true'
       id: meta
       uses: docker/metadata-action@v5
       with:
@@ -98,6 +115,7 @@ jobs:
           org.opencontainers.image.vendor=${{ github.repository_owner }}
     
     - name: 🔨 Build and push Docker image
+      if: steps.changes.outputs.changed == 'true'
       id: build
       uses: docker/build-push-action@v5
       with:
@@ -107,12 +125,19 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
     
     - name: 📝 Output image
       id: image
       run: |
-        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+        if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
+          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+        else
+          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+          echo "Using existing image (no changes detected)"
+        fi
 
   # 🚀 部署階段
   deploy:
