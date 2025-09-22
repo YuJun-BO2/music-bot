@@ -85,8 +85,15 @@ class Config:
         opts = cls.YTDL_OPTS.copy()
         
         # 如果有 cookies 文件，添加到選項中
-        if cls.YOUTUBE_COOKIES_FILE and os.path.exists(cls.YOUTUBE_COOKIES_FILE):
-            opts['cookiefile'] = cls.YOUTUBE_COOKIES_FILE
+        if cls.YOUTUBE_COOKIES_FILE:
+            # 先檢查文件是否存在
+            if os.path.exists(cls.YOUTUBE_COOKIES_FILE):
+                opts['cookiefile'] = cls.YOUTUBE_COOKIES_FILE
+                print(f"[DEBUG] 使用cookies文件: {cls.YOUTUBE_COOKIES_FILE}")
+            else:
+                print(f"[WARNING] Cookies文件不存在: {cls.YOUTUBE_COOKIES_FILE}")
+        else:
+            print("[INFO] 未設置cookies文件路徑")
             
         return opts
     

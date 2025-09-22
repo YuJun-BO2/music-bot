@@ -4,6 +4,20 @@ services:
     container_name: music-bot
     restart: unless-stopped
     
+    # 容器啟動命令 - 複製cookies並啟動機器人
+    command: >
+      sh -c "
+        mkdir -p /app/cookies &&
+        if [ -f /app/host_files/youtube_cookies.txt ]; then
+          cp /app/host_files/youtube_cookies.txt /app/cookies/youtube_cookies.txt &&
+          chmod 600 /app/cookies/youtube_cookies.txt &&
+          echo '✅ Cookies文件已複製';
+        else
+          echo '⚠️ 找不到cookies文件';
+        fi &&
+        python main.py
+      "
+    
     # 環境變數設定（由 GitHub Actions 自動注入）
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
@@ -19,8 +33,8 @@ services:
       - ALLOWED_IDS=${ALLOWED_IDS:-}
       - STATE_FILE=/app/data/bot_state.json
       - LOG_FILE=/app/logs/musicbot.log
-      # YouTube Cookies 設定 (從掛載的目錄讀取)
-      - YOUTUBE_COOKIES_FILE=/app/host_files/youtube_cookies.txt
+      # YouTube Cookies 設定 (從容器內複製的位置讀取)
+      - YOUTUBE_COOKIES_FILE=/app/cookies/youtube_cookies.txt
       - YOUTUBE_COOKIES_CONTENT=${YOUTUBE_COOKIES_CONTENT:-}
     
     # 數據持久化和SSH密鑰掛載
