@@ -19,12 +19,17 @@ services:
       - ALLOWED_IDS=${ALLOWED_IDS:-}
       - STATE_FILE=/app/data/bot_state.json
       - LOG_FILE=/app/logs/musicbot.log
+      # YouTube Cookies 設定
+      - YOUTUBE_COOKIES_FILE=/app/cookies/youtube_cookies.txt
+      - YOUTUBE_COOKIES_CONTENT=${YOUTUBE_COOKIES_CONTENT:-}
     
     # 數據持久化和SSH密鑰掛載
     volumes:
       - bot_data:/app/data
       - bot_logs:/app/logs
       - ./ssh_key:/app/ssh_key:ro
+      # YouTube Cookies 掛載
+      - ./youtube_cookies.txt:/app/cookies/youtube_cookies.txt:ro
     
     # 網絡設定（如果需要）
     # networks:

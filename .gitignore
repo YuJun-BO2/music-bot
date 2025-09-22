@@ -1,0 +1,40 @@
+# YouTube Cookies - 絕對不能推送到GitHub！
+youtube_cookies.txt
+youtube_cookies_*.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+musicbot.log
+
+# State files
+bot_state.json
+
+# SSH keys
+ssh_key
+ssh_key.pub
+*.pem
+*.key
+
+# Environment variables
+.env
+.env.local

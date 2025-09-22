@@ -43,7 +43,14 @@ class YouTubeHandler:
                 lambda: yt_dlp.YoutubeDL(config.get_ytdl_opts_with_cookies()).extract_info(url, download=False),
                 # 方法2: 正常 yt-dlp
                 lambda: yt_dlp.YoutubeDL(config.YTDL_OPTS).extract_info(url, download=False),
-                # 方法3: 使用備用配置
+                # 方法3: 使用移動端User-Agent
+                lambda: yt_dlp.YoutubeDL({
+                    **config.YTDL_OPTS,
+                    "http_headers": {
+                        "User-Agent": "com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip"
+                    }
+                }).extract_info(url, download=False),
+                # 方法4: 使用備用配置
                 lambda: yt_dlp.YoutubeDL({
                     **config.YTDL_OPTS,
                     "quiet": False,
@@ -52,7 +59,7 @@ class YouTubeHandler:
                     "skip_download": True,
                     "extract_flat": False,
                 }).extract_info(url, download=False),
-                # 方法4: 簡化配置
+                # 方法5: 簡化配置
                 lambda: yt_dlp.YoutubeDL({
                     "format": "bestaudio",
                     "quiet": True,
@@ -105,13 +112,15 @@ class YouTubeHandler:
                 logger.warning(f"遇到YouTube反機器人檢測，建議使用搜尋: {suggestion}")
                 
                 raise AudioSourceError(
-                    f"YouTube 反機器人保護啟動，請改用搜尋功能！\n\n"
-                    f"🔍 建議搜尋指令: `/music {suggestion}`\n\n"
-                    f"📌 其他解決方案:\n"
-                    f"• 稍後再試 (反機器人檢測通常是暫時的)\n"
-                    f"• 使用不同的關鍵字搜尋\n"
-                    f"• 嘗試其他音樂來源\n\n"
-                    f"⚠️ 錯誤詳情: {error_msg[:100]}..."
+                    f"🚫 YouTube 反機器人保護啟動！\n\n"
+                    f"❌ **當前情況**: YouTube 暫時阻止了機器人訪問\n"
+                    f"🔄 **自動重試**: 系統將嘗試其他解析方法\n\n"
+                    f"� **用戶解決方案**:\n"
+                    f"• 🔍 使用搜尋: `/music {suggestion}`\n"
+                    f"• ⏰ 等待 5-10 分鐘後重試\n"
+                    f"• 🎵 嘗試搜尋歌手或歌名\n"
+                    f"• 🎧 使用其他音樂平台連結\n\n"
+                    f"🛠️ **技術細節**: 需要cookie認證才能播放此影片"
                 )
             raise AudioSourceError(f"無法解析影片: {error_msg}")
     
