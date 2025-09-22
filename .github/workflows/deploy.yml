@@ -12,8 +12,8 @@ permissions:
   packages: write
   id-token: write
 
-env:
-  REGISTRY: ghcr.io
+env:          # 檢查機器人日誌中是否有成功連接的訊息
+          if docker-compose logs music-bot | grep -i "logged in\|ready\|connected" | tail -5; then REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -226,16 +226,16 @@ jobs:
           if docker-compose ps | grep -q "Up"; then
             echo "✅ 容器正在運行"
             # 檢查機器人日誌中是否有成功連接的訊息
-            if docker-compose logs discord-music-bot | grep -i "logged in\|ready\|connected" | tail -5; then
+            if docker-compose logs music-bot | grep -i "logged in\|ready\|connected" | tail -5; then
               echo "✅ 機器人似乎已成功連接到 Discord"
             else
               echo "⚠️  未在日誌中找到連接成功的訊息"
               echo "最近的日誌："
-              docker-compose logs discord-music-bot --tail=10
+              docker-compose logs music-bot --tail=10
             fi
           else
             echo "❌ 容器未正常運行"
-            docker-compose logs discord-music-bot --tail=20
+            docker-compose logs music-bot --tail=20
             exit 1
           fi
 
