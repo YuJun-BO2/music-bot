@@ -56,6 +56,8 @@ class Config:
         },
         # 使用備用搜索方法
         "default_search": "ytsearch",
+        # Cookie 認證設定 (繞過反機器人檢查)
+        # 注意：容器環境需要手動提供cookie文件
     }
     
     # FFmpeg 設定

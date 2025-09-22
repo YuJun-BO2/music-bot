@@ -94,13 +94,24 @@ class YouTubeHandler:
             # 檢查是否是機器人檢測錯誤
             error_msg = str(e)
             if any(keyword in error_msg.lower() for keyword in ["sign in", "bot", "confirm", "cookies"]):
+                # 嘗試從URL提取影片ID並建議搜尋
+                video_id = None
+                if "watch?v=" in url:
+                    video_id = url.split("watch?v=")[-1].split("&")[0]
+                elif "youtu.be/" in url:
+                    video_id = url.split("youtu.be/")[-1].split("?")[0]
+                
+                suggestion = video_id if video_id else url.split('/')[-1] if '/' in url else url
+                logger.warning(f"遇到YouTube反機器人檢測，建議使用搜尋: {suggestion}")
+                
                 raise AudioSourceError(
-                    f"YouTube 反機器人保護啟動。建議:\n"
-                    f"• 使用搜尋功能而非直接連結\n"
-                    f"• 試試 'music' 指令搜尋: {url.split('/')[-1] if '/' in url else url}\n"
-                    f"• 稍後再試或換個關鍵字\n"
-                    f"• 使用 Spotify 或其他音樂來源\n"
-                    f"錯誤詳情: {error_msg[:150]}..."
+                    f"YouTube 反機器人保護啟動，請改用搜尋功能！\n\n"
+                    f"🔍 建議搜尋指令: `/music {suggestion}`\n\n"
+                    f"📌 其他解決方案:\n"
+                    f"• 稍後再試 (反機器人檢測通常是暫時的)\n"
+                    f"• 使用不同的關鍵字搜尋\n"
+                    f"• 嘗試其他音樂來源\n\n"
+                    f"⚠️ 錯誤詳情: {error_msg[:100]}..."
                 )
             raise AudioSourceError(f"無法解析影片: {error_msg}")
     
@@ -369,7 +380,7 @@ class AudioSourceManager:
     
     async def _search_with_ytsearch(self, query: str) -> Optional[str]:
         """使用 youtubesearchpython 搜尋"""
-        return await self.youtube.search_first(query)
+        return await YouTubeHandler.search_first(query)
     
     async def _search_with_ytdlp(self, query: str) -> Optional[str]:
         """使用 yt-dlp 內建搜尋"""
