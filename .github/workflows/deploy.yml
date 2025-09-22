@@ -12,8 +12,8 @@ permissions:
   packages: write
   id-token: write
 
-env:          # 檢查機器人日誌中是否有成功連接的訊息
-          if docker-compose logs music-bot | grep -i "logged in\|ready\|connected" | tail -5; then REGISTRY: ghcr.io
+env:
+  REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
