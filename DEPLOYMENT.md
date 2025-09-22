@@ -41,6 +41,9 @@ KEEPALIVE_INTERVAL   # 保持連接（預設 240 秒）
 SSH_HOST             # SSH 遠端功能伺服器地址
 SSH_PORT             # SSH 連接埠（預設: 22）
 SSH_USER             # SSH 遠端功能用戶名
+
+# 🍪 YouTube 增強設定（可選，用於繞過反機器人檢查）
+YOUTUBE_COOKIES_FILE # YouTube cookies 文件路徑（容器內路徑，如: /app/youtube.txt）
 ```
 
 **🔒 SSH 遠端功能 Secrets（可選，用於 /jable 指令）**

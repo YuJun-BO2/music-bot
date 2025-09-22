@@ -6,6 +6,7 @@ Discord音樂機器人音源處理模組
 import asyncio
 import logging
 import shlex
+import time
 from typing import List, Optional, Dict, Any
 
 import yt_dlp
@@ -34,20 +35,73 @@ class YouTubeHandler:
     
     @staticmethod
     async def extract_info(url: str) -> Dict[str, Any]:
-        """提取YouTube影片資訊"""
+        """提取YouTube影片資訊，包含錯誤重試機制"""
         def _work():
-            with yt_dlp.YoutubeDL(config.YTDL_OPTS) as ydl:
-                return ydl.extract_info(url, download=False)
+            # 嘗試多種方法來獲取影片資訊
+            methods = [
+                # 方法1: 使用 cookies (如果有)
+                lambda: yt_dlp.YoutubeDL(config.get_ytdl_opts_with_cookies()).extract_info(url, download=False),
+                # 方法2: 正常 yt-dlp
+                lambda: yt_dlp.YoutubeDL(config.YTDL_OPTS).extract_info(url, download=False),
+                # 方法3: 使用備用配置
+                lambda: yt_dlp.YoutubeDL({
+                    **config.YTDL_OPTS,
+                    "quiet": False,
+                    "verbose": False,
+                    "simulate": True,
+                    "skip_download": True,
+                    "extract_flat": False,
+                }).extract_info(url, download=False),
+                # 方法4: 簡化配置
+                lambda: yt_dlp.YoutubeDL({
+                    "format": "bestaudio",
+                    "quiet": True,
+                    "simulate": True,
+                    "extractor_retries": 2,
+                    "http_headers": {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    }
+                }).extract_info(url, download=False),
+            ]
+            
+            last_error = None
+            for i, method in enumerate(methods, 1):
+                try:
+                    logger.info(f"嘗試方法 {i} 解析 YouTube 影片: {url}")
+                    result = method()
+                    if result:
+                        logger.info(f"方法 {i} 成功解析影片")
+                        return result
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"方法 {i} 失敗: {str(e)[:100]}...")
+                    if i < len(methods):
+                        time.sleep(1)  # 在重試之間等待
+                        continue
+            
+            # 如果所有方法都失敗，拋出最後的錯誤
+            raise last_error or Exception("所有解析方法都失敗")
         
         try:
             return await asyncio.wait_for(
                 run_in_thread(_work), 
-                timeout=config.EXTRACT_TIMEOUT
+                timeout=config.EXTRACT_TIMEOUT * 2  # 增加超時時間因為有重試
             )
         except asyncio.TimeoutError:
-            raise AudioSourceError(f"影片解析超時 ({config.EXTRACT_TIMEOUT}s): {url}")
-        except yt_dlp.utils.DownloadError as e:
-            raise AudioSourceError(f"無法解析影片: {e}")
+            raise AudioSourceError(f"影片解析超時 ({config.EXTRACT_TIMEOUT * 2}s): {url}")
+        except Exception as e:
+            logger.error(f"YouTube 影片解析完全失敗: {e}")
+            # 檢查是否是機器人檢測錯誤
+            error_msg = str(e)
+            if any(keyword in error_msg.lower() for keyword in ["sign in", "bot", "confirm", "cookies"]):
+                raise AudioSourceError(
+                    f"YouTube 反機器人保護啟動。建議:\n"
+                    f"• 使用搜尋功能而非直接連結\n"
+                    f"• 稍後再試\n"
+                    f"• 使用 Spotify 或其他音樂來源\n"
+                    f"錯誤詳情: {error_msg[:150]}..."
+                )
+            raise AudioSourceError(f"無法解析影片: {error_msg}")
     
     @staticmethod
     async def get_playlist_urls(url: str, music: bool = False) -> List[str]:
@@ -262,13 +316,86 @@ class AudioSourceManager:
             raise
     
     async def _process_search_query(self, query: str) -> Dict[str, Any]:
-        """處理搜尋查詢"""
-        url = await self.youtube.search_first(query)
+        """處理搜尋查詢，使用多種備用方法"""
+        logger.info(f"搜尋音樂: {query}")
         
-        if not url:
-            raise AudioSourceError(f"找不到搜尋結果: {query}")
+        # 嘗試多種搜尋方法
+        search_methods = [
+            # 方法1: 使用 youtubesearchpython
+            lambda: self._search_with_ytsearch(query),
+            # 方法2: 使用 yt-dlp 內建搜尋
+            lambda: self._search_with_ytdlp(query),
+            # 方法3: 使用 ytsearch 前綴
+            lambda: self._search_with_prefix(query),
+        ]
         
-        return await self._process_direct_url(url)
+        last_error = None
+        for i, method in enumerate(search_methods, 1):
+            try:
+                logger.info(f"嘗試搜尋方法 {i}: {query}")
+                url = await method()
+                if url:
+                    logger.info(f"搜尋方法 {i} 成功找到結果")
+                    return await self._process_direct_url(url)
+            except Exception as e:
+                last_error = e
+                logger.warning(f"搜尋方法 {i} 失敗: {str(e)[:100]}...")
+                continue
+        
+        # 如果所有搜尋方法都失敗
+        error_msg = f"所有搜尋方法都失敗，找不到: {query}"
+        if last_error:
+            error_msg += f"\n最後錯誤: {str(last_error)[:100]}..."
+        
+        raise AudioSourceError(error_msg)
+    
+    async def _search_with_ytsearch(self, query: str) -> Optional[str]:
+        """使用 youtubesearchpython 搜尋"""
+        return await self.youtube.search_first(query)
+    
+    async def _search_with_ytdlp(self, query: str) -> Optional[str]:
+        """使用 yt-dlp 內建搜尋"""
+        def _work():
+            try:
+                opts = {
+                    **config.YTDL_OPTS,
+                    "quiet": True,
+                    "default_search": "ytsearch1",
+                    "extract_flat": True,
+                }
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    result = ydl.extract_info(query, download=False)
+                    entries = result.get("entries", [])
+                    if entries and entries[0]:
+                        return f"https://www.youtube.com/watch?v={entries[0]['id']}"
+                return None
+            except Exception as e:
+                logger.warning(f"yt-dlp 搜尋失敗: {e}")
+                return None
+        
+        return await run_in_thread(_work)
+    
+    async def _search_with_prefix(self, query: str) -> Optional[str]:
+        """使用 ytsearch 前綴直接搜尋"""
+        def _work():
+            try:
+                search_query = f"ytsearch1:{query}"
+                opts = {
+                    "quiet": True,
+                    "extract_flat": True,
+                    "skip_download": True,
+                }
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    result = ydl.extract_info(search_query, download=False)
+                    entries = result.get("entries", [])
+                    if entries and entries[0]:
+                        return entries[0]["webpage_url"]
+                return None
+            except Exception as e:
+                logger.warning(f"前綴搜尋失敗: {e}")
+                return None
+        
+        return await run_in_thread(_work)
 
 # 創建全域音源管理器實例
 audio_source_manager = AudioSourceManager()

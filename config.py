@@ -42,6 +42,20 @@ class Config:
         "logtostderr": False,
         "age_limit": None,
         "default_search": "auto",
+        # 針對 YouTube 反機器人保護的設定
+        "extractor_retries": 3,
+        "fragment_retries": 3,
+        "retry_sleep": 2,
+        "sleep_interval": 1,
+        "max_sleep_interval": 5,
+        # 使用更多的備用提取器
+        "youtube_include_dash_manifest": False,
+        # 添加 User-Agent 來模擬正常瀏覽器
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        },
+        # 使用備用搜索方法
+        "default_search": "ytsearch",
     }
     
     # FFmpeg 設定
@@ -59,6 +73,20 @@ class Config:
     EXTRACT_TIMEOUT = int(os.getenv('EXTRACT_TIMEOUT', '30'))
     CONNECT_TIMEOUT = int(os.getenv('CONNECT_TIMEOUT', '15'))
     KEEPALIVE_INTERVAL = int(os.getenv('KEEPALIVE_INTERVAL', '240'))  # 4分鐘
+    
+    # YouTube Cookies 設定（可選，用於繞過反機器人檢查）
+    YOUTUBE_COOKIES_FILE = os.getenv('YOUTUBE_COOKIES_FILE', '')
+    
+    @classmethod
+    def get_ytdl_opts_with_cookies(cls) -> Dict[str, Any]:
+        """獲取包含 cookies 的 yt-dlp 選項"""
+        opts = cls.YTDL_OPTS.copy()
+        
+        # 如果有 cookies 文件，添加到選項中
+        if cls.YOUTUBE_COOKIES_FILE and os.path.exists(cls.YOUTUBE_COOKIES_FILE):
+            opts['cookiefile'] = cls.YOUTUBE_COOKIES_FILE
+            
+        return opts
     
     @classmethod
     def validate(cls) -> bool:
