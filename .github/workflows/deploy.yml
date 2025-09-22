@@ -156,7 +156,7 @@ jobs:
       with:
         host: ${{ vars.DEPLOY_HOST }}
         username: ${{ vars.DEPLOY_USER }}
-        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ vars.DEPLOY_PORT || 22 }}
         script: |
           # 更新系統
@@ -181,22 +181,25 @@ jobs:
           # 下載最新的 docker-compose.yml
           curl -o docker-compose.yml https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.yml
           
-          # 創建 .env 文件（如果不存在）
-          if [ ! -f .env ]; then
-            echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" > .env
-            echo "COMMAND_PREFIX=${{ vars.COMMAND_PREFIX || '/' }}" >> .env
-            echo "MAX_QUEUE_SIZE=${{ vars.MAX_QUEUE_SIZE || '100' }}" >> .env
-            echo "MAX_HISTORY_SIZE=${{ vars.MAX_HISTORY_SIZE || '50' }}" >> .env
-            echo "EXTRACT_TIMEOUT=${{ vars.EXTRACT_TIMEOUT || '30' }}" >> .env
-            echo "KEEPALIVE_INTERVAL=${{ vars.KEEPALIVE_INTERVAL || '240' }}" >> .env
-            echo "SSH_HOST=${{ vars.DEPLOY_HOST }}" >> .env
-            echo "SSH_PORT=${{ vars.DEPLOY_PORT || '22' }}" >> .env
-            echo "SSH_USER=${{ vars.DEPLOY_USER }}" >> .env
-            echo "ALLOWED_IDS=${{ vars.ALLOWED_IDS }}" >> .env
-            # 使用 base64 編碼來安全處理SSH密碼
-            echo '${{ secrets.SSH_PASS }}' | base64 -w 0 > ssh_pass_b64
-            echo "SSH_PASS_B64=$(cat ssh_pass_b64)" >> .env
-            rm ssh_pass_b64
+          # 創建 .env 文件
+          cat > .env << 'EOF'
+          DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
+          COMMAND_PREFIX=${{ vars.COMMAND_PREFIX || '/' }}
+          MAX_QUEUE_SIZE=${{ vars.MAX_QUEUE_SIZE || '100' }}
+          MAX_HISTORY_SIZE=${{ vars.MAX_HISTORY_SIZE || '50' }}
+          EXTRACT_TIMEOUT=${{ vars.EXTRACT_TIMEOUT || '30' }}
+          KEEPALIVE_INTERVAL=${{ vars.KEEPALIVE_INTERVAL || '240' }}
+          SSH_HOST=${{ vars.SSH_HOST }}
+          SSH_PORT=${{ vars.SSH_PORT || '22' }}
+          SSH_USER=${{ vars.SSH_USER }}
+          ALLOWED_IDS=${{ vars.ALLOWED_IDS }}
+          SSH_KEY_FILE=/app/ssh_key
+          EOF
+          
+          # 創建 SSH 私鑰文件（用於遠端功能，如果提供）
+          if [ ! -z "${{ secrets.SSH_REMOTE_KEY }}" ]; then
+            echo '${{ secrets.SSH_REMOTE_KEY }}' > ssh_key
+            chmod 600 ssh_key
           fi
           
           # 拉取最新映像

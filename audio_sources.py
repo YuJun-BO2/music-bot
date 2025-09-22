@@ -138,12 +138,17 @@ class SSHHandler:
             
             try:
                 ssh_config = config.get_ssh_config()
-                client.connect(
-                    hostname=ssh_config['host'],
-                    port=ssh_config['port'],
-                    username=ssh_config['username'],
-                    password=ssh_config['password']
-                )
+                connect_kwargs = {
+                    'hostname': ssh_config['host'],
+                    'port': ssh_config['port'],
+                    'username': ssh_config['username']
+                }
+                
+                # 使用私鑰檔案認證
+                if 'key_filename' in ssh_config:
+                    connect_kwargs['key_filename'] = ssh_config['key_filename']
+                
+                client.connect(**connect_kwargs)
                 
                 safe_url = shlex.quote(url)
                 command = (

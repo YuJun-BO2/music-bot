@@ -20,28 +20,32 @@
 **� 必填 Secrets（敏感資訊）**
 ```bash
 DISCORD_TOKEN          # Discord 機器人 Token
-DEPLOY_SSH_KEY        # SSH 私鑰內容（完整的私鑰文件內容）
-SSH_PASS             # SSH 密碼（如果使用密碼認證，可選）
+SSH_PRIVATE_KEY        # SSH 私鑰內容（用於部署認證）
 ```
 
 **⚙️ 建議 Variables（非敏感配置）**
 ```bash
+# 🚀 部署設定
 DEPLOY_HOST          # 部署伺服器 IP 或域名
-DEPLOY_USER          # SSH 用戶名
-DEPLOY_PORT          # SSH 端口（如果不是預設的 22）
+DEPLOY_USER          # 部署用的 SSH 用戶名
+DEPLOY_PORT          # 部署用的 SSH 端口（如果不是預設的 22）
+
+# 🎵 機器人設定
 COMMAND_PREFIX       # 指令前綴（預設 /）
 MAX_QUEUE_SIZE       # 最大隊列（預設 100）
 MAX_HISTORY_SIZE     # 最大歷史（預設 50）
 EXTRACT_TIMEOUT      # 解析超時（預設 30 秒）
 KEEPALIVE_INTERVAL   # 保持連接（預設 240 秒）
+
+# 🔒 SSH 遠端功能設定（用於 /jable 指令，可選）
+SSH_HOST             # SSH 遠端功能伺服器地址
+SSH_PORT             # SSH 連接埠（預設: 22）
+SSH_USER             # SSH 遠端功能用戶名
 ```
 
-**🔒 SSH 功能 Secrets（可選，用於 /jable 指令）**
+**🔒 SSH 遠端功能 Secrets（可選，用於 /jable 指令）**
 ```bash
-SSH_HOST=your.server.com  # SSH 功能伺服器地址
-SSH_PORT=22              # SSH 功能端口
-SSH_USER=username        # SSH 功能用戶名
-SSH_PASS=password        # SSH 功能密碼
+SSH_REMOTE_KEY       # SSH 遠端功能的私鑰內容（如果 SSH 遠端功能需要私鑰認證）
 ```
 
 **👥 權限控制 Secrets（可選）**

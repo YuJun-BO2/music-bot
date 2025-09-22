@@ -14,23 +14,11 @@ class Config:
     DISCORD_TOKEN = os.getenv('DISCORD_TOKEN', '')
     COMMAND_PREFIX = os.getenv('COMMAND_PREFIX', '/')
     
-    # SSH 設定 (用於特殊功能)
+    # SSH 認證設定 (用於特殊功能)
     SSH_HOST = os.getenv('SSH_HOST', '')
     SSH_PORT = int(os.getenv('SSH_PORT', '22'))
     SSH_USER = os.getenv('SSH_USER', '')
-    
-    # 處理可能經過 base64 編碼的 SSH 密碼
-    _ssh_pass_raw = os.getenv('SSH_PASS', '')
-    _ssh_pass_b64 = os.getenv('SSH_PASS_B64', '')
-    
-    if _ssh_pass_b64:
-        import base64
-        try:
-            SSH_PASS = base64.b64decode(_ssh_pass_b64).decode('utf-8')
-        except Exception:
-            SSH_PASS = _ssh_pass_raw
-    else:
-        SSH_PASS = _ssh_pass_raw
+    SSH_KEY_FILE = os.getenv('SSH_KEY_FILE', '')  # SSH 私鑰檔案路徑
     
     # 權限控制
     ALLOWED_IDS = set(map(int, os.getenv('ALLOWED_IDS', '').split(','))) if os.getenv('ALLOWED_IDS') else set()
@@ -91,17 +79,23 @@ class Config:
     @classmethod
     def get_ssh_config(cls) -> Dict[str, Any]:
         """獲取SSH配置字典"""
-        return {
+        config = {
             'host': cls.SSH_HOST,
             'port': cls.SSH_PORT,
             'username': cls.SSH_USER,
-            'password': cls.SSH_PASS,
         }
+        
+        # 優先使用私鑰檔案認證
+        if cls.SSH_KEY_FILE and os.path.exists(cls.SSH_KEY_FILE):
+            config['key_filename'] = cls.SSH_KEY_FILE
+        
+        return config
     
     @classmethod
     def is_ssh_enabled(cls) -> bool:
         """檢查SSH功能是否可用"""
-        return bool(cls.SSH_HOST and cls.SSH_USER and cls.SSH_PASS)
+        return bool(cls.SSH_HOST and cls.SSH_USER and 
+                   (cls.SSH_KEY_FILE and os.path.exists(cls.SSH_KEY_FILE)))
     
     @classmethod
     def is_user_allowed(cls, user_id: int) -> bool:

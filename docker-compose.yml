@@ -19,16 +19,16 @@ services:
       - SSH_HOST=${SSH_HOST:-}
       - SSH_PORT=${SSH_PORT:-22}
       - SSH_USER=${SSH_USER:-}
-      - SSH_PASS=${SSH_PASS:-}
-      - SSH_PASS_B64=${SSH_PASS_B64:-}
+      - SSH_KEY_FILE=${SSH_KEY_FILE:-}
       - ALLOWED_IDS=${ALLOWED_IDS:-}
       - STATE_FILE=/app/data/bot_state.json
       - LOG_FILE=/app/logs/musicbot.log
     
-    # 數據持久化
+    # 數據持久化和SSH密鑰掛載
     volumes:
       - bot_data:/app/data
       - bot_logs:/app/logs
+      - ./ssh_key:/app/ssh_key:ro
     
     # 網絡設定（如果需要）
     # networks:
