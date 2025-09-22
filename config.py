@@ -18,7 +18,19 @@ class Config:
     SSH_HOST = os.getenv('SSH_HOST', '')
     SSH_PORT = int(os.getenv('SSH_PORT', '22'))
     SSH_USER = os.getenv('SSH_USER', '')
-    SSH_PASS = os.getenv('SSH_PASS', '')
+    
+    # 處理可能經過 base64 編碼的 SSH 密碼
+    _ssh_pass_raw = os.getenv('SSH_PASS', '')
+    _ssh_pass_b64 = os.getenv('SSH_PASS_B64', '')
+    
+    if _ssh_pass_b64:
+        import base64
+        try:
+            SSH_PASS = base64.b64decode(_ssh_pass_b64).decode('utf-8')
+        except Exception:
+            SSH_PASS = _ssh_pass_raw
+    else:
+        SSH_PASS = _ssh_pass_raw
     
     # 權限控制
     ALLOWED_IDS = set(map(int, os.getenv('ALLOWED_IDS', '').split(','))) if os.getenv('ALLOWED_IDS') else set()

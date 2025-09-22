@@ -1,0 +1,53 @@
+# 本地建構排除文件
+# 這些文件不會被複製到Docker容器中
+
+# Git相關
+.git/
+.gitignore
+
+# 環境文件（包含敏感資訊）
+build.env
+.env
+*.env
+
+# 建構腳本
+*.bat
+
+# 開發文件
+README.md
+DEPLOYMENT.md
+docs/
+
+# 測試和快取
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+test_state.json
+test_bot.log
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 本地數據
+data/
+logs/
+*.log
+*.json
+
+# 備份文件
+*.bak
+*.backup
+
+# Windows特定
+Thumbs.db
+desktop.ini
+
+# 暫存文件
+*.tmp
+*.temp

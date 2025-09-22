@@ -168,15 +168,11 @@ jobs:
             echo "SSH_PORT=${{ vars.DEPLOY_PORT || '22' }}" >> .env
             echo "SSH_USER=${{ vars.DEPLOY_USER }}" >> .env
             echo "ALLOWED_IDS=${{ vars.ALLOWED_IDS }}" >> .env
+            # 使用 base64 編碼來安全處理SSH密碼
+            echo '${{ secrets.SSH_PASS }}' | base64 -w 0 > ssh_pass_b64
+            echo "SSH_PASS_B64=$(cat ssh_pass_b64)" >> .env
+            rm ssh_pass_b64
           fi
-          
-          # 單獨處理SSH_PASS，因為它可能是多行的SSH私鑰
-          cat > .env.ssh << 'EOF'
-SSH_PASS=${{ secrets.SSH_PASS }}
-EOF
-          # 將SSH_PASS加到.env檔案
-          cat .env.ssh >> .env
-          rm .env.ssh
           
           # 拉取最新映像
           docker-compose pull
