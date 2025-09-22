@@ -97,7 +97,8 @@ class YouTubeHandler:
                 raise AudioSourceError(
                     f"YouTube 反機器人保護啟動。建議:\n"
                     f"• 使用搜尋功能而非直接連結\n"
-                    f"• 稍後再試\n"
+                    f"• 試試 'music' 指令搜尋: {url.split('/')[-1] if '/' in url else url}\n"
+                    f"• 稍後再試或換個關鍵字\n"
                     f"• 使用 Spotify 或其他音樂來源\n"
                     f"錯誤詳情: {error_msg[:150]}..."
                 )
@@ -133,9 +134,17 @@ class YouTubeHandler:
         """搜尋並返回第一個結果的URL"""
         def _work():
             try:
-                search = VideosSearch(query, limit=1).result()
-                results = search.get("result", [])
-                return results[0]["link"] if results else None
+                # 避免 proxies 參數問題，使用簡化的搜尋
+                search = VideosSearch(query, limit=1)
+                results = search.result()
+                
+                # 安全地取得結果
+                if results and "result" in results and results["result"]:
+                    first_result = results["result"][0]
+                    if "link" in first_result:
+                        return first_result["link"]
+                
+                return None
             except Exception as e:
                 logger.error(f"YouTube搜尋失敗: {e}")
                 return None
@@ -327,6 +336,10 @@ class AudioSourceManager:
             lambda: self._search_with_ytdlp(query),
             # 方法3: 使用 ytsearch 前綴
             lambda: self._search_with_prefix(query),
+            # 方法4: 添加額外關鍵字重新搜尋
+            lambda: self._search_with_keywords(query),
+            # 方法5: 使用不同的搜尋策略
+            lambda: self._search_alternative(query),
         ]
         
         last_error = None
@@ -336,7 +349,12 @@ class AudioSourceManager:
                 url = await method()
                 if url:
                     logger.info(f"搜尋方法 {i} 成功找到結果")
-                    return await self._process_direct_url(url)
+                    # 嘗試處理找到的 URL，如果失敗則繼續下一個方法
+                    try:
+                        return await self._process_direct_url(url)
+                    except AudioSourceError as e:
+                        logger.warning(f"URL 處理失敗，嘗試下一個方法: {str(e)[:100]}...")
+                        continue
             except Exception as e:
                 last_error = e
                 logger.warning(f"搜尋方法 {i} 失敗: {str(e)[:100]}...")
@@ -389,10 +407,73 @@ class AudioSourceManager:
                     result = ydl.extract_info(search_query, download=False)
                     entries = result.get("entries", [])
                     if entries and entries[0]:
-                        return entries[0]["webpage_url"]
+                        entry = entries[0]
+                        # 嘗試多種可能的 URL 字段
+                        url_fields = ["webpage_url", "url", "original_url"]
+                        for field in url_fields:
+                            if field in entry and entry[field]:
+                                return entry[field]
+                        
+                        # 如果沒有直接的 URL，嘗試構建
+                        if "id" in entry:
+                            return f"https://www.youtube.com/watch?v={entry['id']}"
+                        
                 return None
             except Exception as e:
                 logger.warning(f"前綴搜尋失敗: {e}")
+                return None
+        
+        return await run_in_thread(_work)
+    
+    async def _search_with_keywords(self, query: str) -> Optional[str]:
+        """使用額外關鍵字重新搜尋"""
+        def _work():
+            try:
+                # 添加額外關鍵字來避免地區限制
+                enhanced_query = f"{query} official music video"
+                search = VideosSearch(enhanced_query, limit=3)
+                results = search.result()
+                
+                if results and "result" in results and results["result"]:
+                    # 嘗試前幾個結果
+                    for result in results["result"][:3]:
+                        if "link" in result:
+                            return result["link"]
+                
+                return None
+            except Exception as e:
+                logger.warning(f"關鍵字搜尋失敗: {e}")
+                return None
+        
+        return await run_in_thread(_work)
+    
+    async def _search_alternative(self, query: str) -> Optional[str]:
+        """使用替代搜尋策略"""
+        def _work():
+            try:
+                # 嘗試不同的搜尋變體
+                search_variants = [
+                    f"{query} lyrics",
+                    f"{query} cover",
+                    f"{query} instrumental",
+                    query.replace(" ", "+"),  # URL 編碼
+                ]
+                
+                for variant in search_variants:
+                    try:
+                        search = VideosSearch(variant, limit=1)
+                        results = search.result()
+                        
+                        if results and "result" in results and results["result"]:
+                            first_result = results["result"][0]
+                            if "link" in first_result:
+                                return first_result["link"]
+                    except Exception:
+                        continue
+                
+                return None
+            except Exception as e:
+                logger.warning(f"替代搜尋失敗: {e}")
                 return None
         
         return await run_in_thread(_work)
