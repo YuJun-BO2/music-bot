@@ -65,7 +65,11 @@ class TestConfig(unittest.TestCase):
         self.assertIn('host', ssh_config)
         self.assertIn('port', ssh_config)
         self.assertIn('username', ssh_config)
-        self.assertIn('password', ssh_config)
+        
+        # 檢查認證方式：應該有私鑰檔案路徑（如果SSH_KEY_FILE存在且文件存在）
+        if config.SSH_KEY_FILE and os.path.exists(config.SSH_KEY_FILE):
+            self.assertIn('key_filename', ssh_config)
+            self.assertEqual(ssh_config['key_filename'], config.SSH_KEY_FILE)
     
     def test_user_permission(self):
         """測試用戶權限檢查"""
