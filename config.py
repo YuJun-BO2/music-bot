@@ -89,6 +89,9 @@ class Config:
             # 先檢查文件是否存在
             if os.path.exists(cls.YOUTUBE_COOKIES_FILE):
                 opts['cookiefile'] = cls.YOUTUBE_COOKIES_FILE
+                # 防止yt-dlp嘗試寫入只讀的cookies文件
+                opts['cookiesfrombrowser'] = None
+                opts['no_cookies'] = False
                 print(f"[DEBUG] 使用cookies文件: {cls.YOUTUBE_COOKIES_FILE}")
             else:
                 print(f"[WARNING] Cookies文件不存在: {cls.YOUTUBE_COOKIES_FILE}")
